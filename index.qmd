@@ -114,23 +114,23 @@ Here is how the first entry in `drwho2023` is contained
 
 -   rating
 
-    -   `rating$average`
+-   `rating$average`
 
 -   image
 
-    -   `image$medium`
+-   `image$medium`
 
-    -   `image$original`
+-   `image$original`
 
 -   summary
 
 -   \_links
 
-    -   `links$self`
-        -   `links$self$href`
-    -   `links$show`
-        -   `links$show$href`
-        -   `links$show$name`
+-   `links$self`
+-   `links$self$href`
+-   `links$show`
+-   `links$show$href`
+-   `links$show$name`
 
 ------------------------------------------------------------------------
 
@@ -139,13 +139,13 @@ If so, why?
 
 -   rating
 
-    -   `rating$average` shouldn't be nested in rating
+-   `rating$average` shouldn't be nested in rating
 
-    -   It would be better to just have an un-nested average_rating variable instead
+-   It would be better to just have an un-nested average_rating variable instead
 
 -   image and links
 
-    -   these can most likely be split into separate columns respectively
+-   these can most likely be split into separate columns respectively
 
 use nest() function to deal with lists \>= 2
 
@@ -168,12 +168,12 @@ Make an ordered list of steps you need to take.
 ------------------------------------------------------------------------
 
 1.  Make an `era_information_data` table
-    -   Use the html tvmaze url located in `links$show$href` to scrape information such as `Era_ID`, `Premier_Date`, `End_Date`, `Average_Runtime`.
+-   Use the html tvmaze url located in `links$show$href` to scrape information such as `Era_ID`, `Premier_Date`, `End_Date`, `Average_Runtime`.
 2.  Make an `episode_information_data` table
-    -   Make an entry in the `drwhoXXXX` json files be mapped as a dataframe row.
-    -   Add an `Era_ID` column to be able to filter and know what episodes are from each era
+-   Make an entry in the `drwhoXXXX` json files be mapped as a dataframe row.
+-   Add an `Era_ID` column to be able to filter and know what episodes are from each era
 3.  Make a `season_information_data` table
-    -   With the `Era_ID` and `season` variables as a key, list the `average_runtime`, `season_length`, `number_of_episodes`, and `number of specials`
+-   With the `Era_ID` and `season` variables as a key, list the `average_runtime`, `season_length`, `number_of_episodes`, and `number of specials`
 
 ## Implement Your Strategy
 
@@ -187,7 +187,7 @@ Print out the first 5 rows of each table that you create (but no more)!
 
 Checking where the json urls for each show are
 
-```{r}
+```{r, output = F, message = F, warning = F}
 drwho1963[[1]]$`_links`$show$href
 drwho2005[[1]]$`_links`$show$href
 drwho2023[[1]]$`_links`$show$href
@@ -199,9 +199,9 @@ The id of the list is named according to the era the drwho show takes place in.
 
 ```{r}
 drwho_eras <- list(
-  "Classic" = drwho1963,
-  "Revival" = drwho2005,
-  "Modern" = drwho2023
+    "Classic" = drwho1963,
+    "Revival" = drwho2005,
+    "Modern" = drwho2023
 )
 ```
 
@@ -263,9 +263,9 @@ Extracting the necessary json links directly (without my `get_show_links()` func
 ```{r}
 
 era_links <- map_dfr(
-  drwho_eras,
-  ~ tibble(json_link = .x[[1]]$`_links`$show$href),
-  .id = "era"  
+    drwho_eras,
+    ~ tibble(json_link = .x[[1]]$`_links`$show$href),
+    .id = "era"  
 )
 
 era_links
@@ -340,8 +340,10 @@ fix_episode_nodes <- function(i) {
 Using `map_dfr()` along with my `fix_nodes()` function to create the episode information data in tabular form.
 
 ```{r}
-episode_information_data <- drwho_eras[c("Classic", "Revival", "Modern")] %>% 
-  map_dfr(~ map_dfr(.x, fix_episode_nodes), .id = "era")
+episode_information_data <- 
+    drwho_eras[c("Classic", "Revival", "Modern")] %>% 
+    map_dfr(~ map_dfr(.x, fix_episode_nodes), .id = "era")
+
 ```
 
 Quick format cleaning 
@@ -370,6 +372,22 @@ kable(head(episode_information_data, 5))
 ```
 
 
+### Season Information Table
+
+```{r, message = F}
+season_information_data <- 
+    episode_information_data %>% 
+    group_by(era, season) %>% 
+    summarise( 
+        amount_of_episodes = length(episode),
+        runtime_of_season = sum(runtime),
+        average_runtime_per_episode = sum(runtime)/length(episode), 
+        average_season_rating = sum(average_rating)/length(episode)
+    )
+
+kable(head(season_information_data))
+```
+
 ## Examining Episode Air Dates
 
 Visually represent the length of time between air dates of adjacent episodes within the same season, across all seasons of Dr. Who.
@@ -392,23 +410,23 @@ episode_information_data <-
 episode_information_data %>% 
     filter(era == 'Classic') %>% 
     ggplot(
-        aes(x = episode_id, 
+        aes(x = episode, 
             y = gap_days, 
             fill = factor(season), 
             color = factor(season))
-        ) + 
-    geom_bar(stat = 'identity')
+    ) + 
+    geom_bar(stat = 'identity', position = 'dodge')
 ```
 
 ```{r}
 episode_information_data %>% 
     filter(era == 'Revival') %>% 
     ggplot(
-        aes(x = episode_id, 
+        aes(x = air_date, 
             y = gap_days, 
             fill = factor(season), 
             color = factor(season))
-        ) + 
+    ) + 
     geom_bar(stat = 'identity')
 ```
 
@@ -416,12 +434,12 @@ episode_information_data %>%
 episode_information_data %>% 
     filter(era == 'Modern') %>% 
     ggplot(
-        aes(x = episode_id, 
+        aes(x = air_date, 
             y = gap_days,
             fill = factor(season), 
             color = factor(season))
-        ) + 
-    geom_bar(stat = 'identity')
+    ) + 
+    geom_bar(stat = 'identity', position = 'dodge')
 ```
 
 
@@ -446,7 +464,7 @@ Use a functional programming approach to read in all of the files and bind them 
 
 ------------------------------------------------------------------------
 
-Loading in json files
+### Loading in json files
 
 ```{r}
 sarah_jane_json <- read_json('sarahjane-970.json')
@@ -454,16 +472,16 @@ torchwood_659_json <- read_json('torchwood-659.json')
 torchwood_26694_json <- read_json('torchwood-26694.json')
 ```
 
-Binding ALL json files together into one big list
+### Binding ALL json files together into one big list
 
 ```{r}
 timey_wimey_list <- list(
-  "Classic" = drwho1963,
-  "Revival" = drwho2005,
-  "Modern" = drwho2023,
-  'Sarah Jane Adventures' = sarah_jane_json,
-  'Torchwood' = torchwood_659_json,
-  'Torchwood Web of Lies' = torchwood_26694_json
+    "Classic" = drwho1963,
+    "Revival" = drwho2005,
+    "Modern" = drwho2023,
+    'Sarah Jane Adventures' = sarah_jane_json,
+    'Torchwood' = torchwood_659_json,
+    'Torchwood Web of Lies' = torchwood_26694_json
 )
 ```
 
@@ -476,20 +494,20 @@ Call this rectangular table `whoverse`.
 
 ------------------------------------------------------------------------
 
-Scraping the links to create the new `who_verse_eras_data` table
+### Scraping the links to create the new `eras_data` table
 
 ```{r}
 era_links <- map_dfr(
-  timey_wimey_list,
-  ~ tibble(json_link = .x[[1]]$`_links`$show$href),
-  .id = "era"  
+    timey_wimey_list,
+    ~ tibble(json_link = .x[[1]]$`_links`$show$href),
+    .id = "era"  
 )
 
 era_links
 
 ```
 
-Pulling information I need from those links to make the table
+### Pulling information I need from those links to make the table
 
 ```{r}
 era_table <- 
@@ -507,19 +525,21 @@ era_table <-
 era_table
 ```
 
-Creating the who_verse_episode table 
+### Creating the who_verse_episode table 
 
 ```{r}
-who_verse_episode_data <- timey_wimey_list[c("Classic", "Revival", "Modern", "Sarah Jane Adventures", "Torchwood", "Torchwood Web of Lies")] %>% 
-  map_dfr(~ map_dfr(.x, fix_episode_nodes), .id = "era")
+whoverse <- 
+    timey_wimey_list[
+        c("Classic", "Revival", "Modern", "Sarah Jane Adventures", "Torchwood", "Torchwood Web of Lies")] %>% 
+    map_dfr(~ map_dfr(.x, fix_episode_nodes), .id = "era")
 ```
 
-Quick column format cleaning
+#### Quick column format cleaning
 
 ```{r}
 
-who_verse_episode_data <- 
-    who_verse_episode_data %>% 
+whoverse <- 
+    whoverse %>% 
     mutate(
         era = as.factor(era),
         type = as.factor(type), 
@@ -537,24 +557,55 @@ who_verse_episode_data <-
 ## Air Time
 
 Investigate the air time of the episodes relative to the air date, series, and season.
-It may help to know that the [watershed](https://en.wikipedia.org/wiki/Watershed_(broadcasting)) period in the UK is 9:00pm - 5:30am.
+It may help to know that the [watershed](https://en.wikipedia.org/wiki/Watershed_(broadcasting)) period in the UK is 9:00pm - 5:30am. 
 Content that is unsuitable for minors may only be shown during this window.
 What conclusions do you draw about the target audience for each show?
+-   **Military Times: 21:00 - 5:30**
 
-How can you explain any shows in the Dr. Who universe which do not have airtimes provided?
+### Preparing the Data
+
+```{r}
+air_time_data <- 
+whoverse %>% 
+    group_by(era, air_time) %>% 
+    summarise(
+        episode_amount = length(episode)
+    )
+```
 
 
 ```{r}
-
-who_verse_episode_data %>% 
+air_time_data %>% 
     ggplot(
         aes(
-            x = episode_id, y = air_time, fill = factor(era)
+            x = air_time, y = episode_amount, fill = era
         )
     ) + 
-    geom_bar(stat = 'identity')
+    geom_bar(stat = 'identity', width = 0.5, position = 'dodge') + 
+    # scale_x_discrete(guide = guide_axis(n.dodge = 4)) + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 2)) + 
+    labs(
+        x = "Time Episode Aired", 
+        y = 'Amount of Episodes',
+        title = 'Amount of Episodes Airing at Certain Times'
+    ) 
 ```
 
+The bar chart can show us that Classic Dr. Who seemed to air between 17:10 and 19:10, so we can conclude that the content seen in the Classic Era was suitable for minors. 
+
+When looking at the Modern Dr. Who, episodes tend to are at different times, some air at 0:00, others at 8:00, and then there is one (or a small amount) of episodes that air at 20:00. According to the UK's broadcasting schedules, this show seems to be suitable for minors. 
+
+The Revival Dr. Who episodes, as well as Sarah Jane Adventures, also fall outside of the UK's 'adult / non-minor suitable' broadcasting times. 
+
+Things start to get different when looking at Torchwood: 
+
+Torchwood seems to air at time laters than or equal to 21:00. We can conclude that this show's target audience may be young adults or older teens. 
+
+Torchwood Web of Lies do not have an air date.
+
+### How can you explain any shows in the Dr. Who universe which do not have airtimes provided?
+
+Torchwood Web of Lies, unlike the other series, is animated. Not only that, but it is also not a TV show, it is instead a comic book that had "episodes" released weekly. In return, they do not have an air date on television provided. 
 
 ## Another Layer of JSON
 
@@ -563,10 +614,9 @@ As with scraping, it is important to be polite and not make unnecessary server c
 You should use a functional programming approach when reading in these files.
 
 ------------------------------------------------------------------------
-:::callout
 
-I think I did this already with my `era_table` dataframe?
-
+::: callout
+I think I accidentally did this first with my `era_table` dataframe?
 :::
 
 ### Gettings the links in an easy to find/grab spot
@@ -575,15 +625,13 @@ I believe this is polite, as it is taking the each element in the big list (Clas
 
 ```{r}
 era_links <- map_dfr(
-  timey_wimey_list,
-  ~ tibble(json_link = .x[[1]]$`_links`$show$href),
-  .id = "era"  
+    timey_wimey_list,
+    ~ tibble(json_link = .x[[1]]$`_links`$show$href),
+    .id = "era"  
 )
 
 kable(head(era_links,5))
 ```
-
-
 
 ------------------------------------------------------------------------
 
@@ -632,8 +680,45 @@ Or, look at the episode guest cast by appending `/guestcast/` to the episode URL
 
 ------------------------------------------------------------------------
 
-
+I am just going to go with examining the frequency of words in the episode descriptions accross different series. I plan to do this by plotting the episodes by their air date and coloring/filling them by the era/spinoff/series they appeared in. I hope I can get a nice plot, better than the others, that fits all of the series into one plot nicely without sacrificing any information.
 
 ------------------------------------------------------------------------
 
 Code goes here -- once you output a result, you should explain it using markdown text, and then start a new code chunk to continue your exploration.
+
+### Examining the Frequency of Words in the Episode Descriptions
+
+```{r}
+episode_word_count_data <- whoverse %>%
+    select(era,air_date, summary) %>%
+    mutate(
+        summary = str_remove_all(summary, "<.*?>"),
+    ) %>% 
+    mutate(
+        word_count = str_count(summary, "\\S+")
+    )
+
+kable(head(episode_word_count_data))
+```
+
+### Exploring it 
+
+```{r}
+summary(episode_word_count_data$word_count)
+```
+### Visual Plot
+
+```{r, warning = F, message = F}
+episode_word_count_data %>% 
+    ggplot(aes(
+        x = air_date, y = word_count, color = era, fill = era
+    )) + 
+    geom_point() + 
+    labs(
+        title = 'Amount of words in the descriptions of Dr. Who series/spinoffs over time',
+        x = "Date when Episode Aired",
+        y = "Word Count"
+    )
+```
+
+The plot shows that as time went on and more and more Dr. Who series/spinoffs were made, the detail that was put into the episode description was less and less. 
